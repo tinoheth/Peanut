@@ -2,20 +2,24 @@
 package main
 
 import (
-	//"fmt"
 	"flag"
+	"fmt"
 	. "github.com/tinoheth/Peanut"
+	"image/png"
+	"net/http"
+	"os"
+	"time"
 )
 
 func main() {
-	println("Running server")
+	//println("Running server")
 
 	var server Server
 	server.Init()
 
 	sources := make([]*Datasource, 1)
 
-	input := make(chan PowerSample)
+	input := make(chan ImpulseSample)
 	testDatasource := NewDatasource("Datei", input)
 	testDatasource.Init("Port")
 	sources[0] = testDatasource
@@ -27,8 +31,26 @@ func main() {
 	provider := NewDataProvider("Solar", basepath, input)
 	server.Providers["Solar"] = provider
 
-	go Poll(sources)
+	http.HandleFunc("/png", handlePNG)
+
+	//readTest(provider)
+	//go Poll(sources)
 	server.Serve()
+}
+
+func handlePNG(w http.ResponseWriter, r *http.Request) {
+	source, _ := os.OpenFile("/Users/tinoheth/Pictures/User Icon.png", os.O_RDONLY, os.FileMode(0755))
+	img, _ := png.Decode(source)
+	png.Encode(w, img)
+}
+
+func readTest(provider *DataProvider) {
+	impulses := provider.ReadInCache(time.Now().AddDate(0, 0, -1), time.Hour*48)
+	fmt.Printf("Count = %d\n", len(impulses))
+	values := Derive(impulses, provider.ImpulseTranslationFactor)
+	for _, c := range values {
+		fmt.Printf("%s: %v\n", c.Time.Format(time.ANSIC), c.Value)
+	}
 }
 
 /*

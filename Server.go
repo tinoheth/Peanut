@@ -1,16 +1,11 @@
 package Peanut
 
 import (
+	"image/png"
 	"log"
 	"net/http"
 	"time"
 )
-
-func defaultTimeFactor() time.Duration {
-	// Use time.Duration to get rid of casting
-	return 10000000
-	// One second equals 100 time units, so we can measure nearly 11 minutes (6W)
-}
 
 func Poll(sources []*Datasource) {
 	for {
@@ -30,6 +25,8 @@ func (server *Server) Serve() {
 	for key, provider := range server.Providers {
 		http.HandleFunc("/"+key+"/KWh", provider.handlerKWh)
 		http.HandleFunc("/"+key+"/Watt", provider.handlerWatt)
+		png := PNGProvider{*provider}
+		http.HandleFunc("/"+key+"/png", png.handleRequest)
 	}
 	err := http.ListenAndServe(":8088", nil)
 	if err != nil {
@@ -41,11 +38,13 @@ func (self *Server) Init() {
 	self.Providers = make(map[string]*DataProvider)
 }
 
-type ImpulseCount int64
+type PNGProvider struct {
+	DataProvider
+}
 
-type KWh float64
-
-type PowerSample struct {
-	time.Time
-	Impulses ImpulseCount
+func (p *PNGProvider) handleRequest(w http.ResponseWriter, r *http.Request) {
+	impulses := p.DataProvider.ReadInCache(time.Now().AddDate(0, 0, -1), time.Hour*24)
+	values := Derive(impulses, p.ImpulseTranslationFactor)
+	img := powerPlot(values)
+	png.Encode(w, img)
 }
