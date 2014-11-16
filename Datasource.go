@@ -74,8 +74,12 @@ func (d *SMSDatasource) loop() {
 		if err != nil {
 			log.Fatalf("Error reading:  %s", err)
 		}
-		t := time.Now()
 		parts := strings.Split(string(line), ";")
+		if len(parts) < 4 {
+			println("Error with serial communication. If this happens often, re-attach USB device")
+			continue
+		}
+		t := time.Now()
 		i0, err := strconv.ParseInt((parts[1]), 10, 64)
 		if err == nil {
 			v0 := ImpulseCount(i0+1) + d.lastValue0
@@ -93,6 +97,6 @@ func (d *SMSDatasource) loop() {
 			}
 		}
 		fmt.Printf("%v A = %v; B = %v\n", t, i0, i1)
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 10)
 	}
 }
