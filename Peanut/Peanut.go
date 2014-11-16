@@ -17,24 +17,34 @@ func main() {
 	var server Server
 	server.Init()
 
-	sources := make([]*Datasource, 1)
+	sources := make(SinglePollerArray, 1)
 
 	input := make(chan ImpulseSample)
-	testDatasource := NewDatasource("Datei", input)
-	testDatasource.Init("Port")
+	testDatasource := NewDummyDatasource("Datei", input)
 	sources[0] = testDatasource
 
 	flag.Parse()
 	basepath := flag.Arg(0)
 	println("Basepath is " + basepath)
 
-	provider := NewDataProvider("Solar", basepath, input)
-	server.Providers["Solar"] = provider
+	provider := NewDataProvider("Dummy", basepath, input)
+	server.Providers["Dummy"] = provider
+
+	chan0 := make(chan ImpulseSample, 2)
+	chan1 := make(chan ImpulseSample, 2)
+
+	sms := NewSMSDatasource("/dev/tty.usbserial-A702PEEC", chan0, chan1)
+	sms.StartPolling()
+
+	solar := NewDataProvider("Solaranlage", basepath, chan0)
+	server.Providers["Solar"] = solar
+	consume := NewDataProvider("Verbrauch", basepath, chan1)
+	server.Providers["Verbrauch"] = consume
 
 	http.HandleFunc("/png", handlePNG)
 
 	//readTest(provider)
-	//go Poll(sources)
+	go Poll(sources)
 	server.Serve()
 }
 

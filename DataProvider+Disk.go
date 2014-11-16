@@ -1,5 +1,5 @@
 // DataProvider+Disk
-package Peanut
+package peanut
 
 import (
 	"encoding/binary"

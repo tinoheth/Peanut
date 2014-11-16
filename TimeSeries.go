@@ -1,5 +1,5 @@
 // TimeSeries
-package Peanut
+package peanut
 
 func Derive(s []ImpulseSample, factor Float) []FloatSample {
 	i := len(s)

@@ -1,4 +1,4 @@
-package Peanut
+package peanut
 
 import (
 	"image/png"
@@ -7,7 +7,9 @@ import (
 	"time"
 )
 
-func Poll(sources []*Datasource) {
+type SinglePollerArray []SinglePoller
+
+func Poll(sources SinglePollerArray) {
 	for {
 		//println(time.Now().String())
 		time.Sleep(1 * time.Second)

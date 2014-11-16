@@ -1,4 +1,4 @@
-package Peanut
+package peanut
 
 import (
 	"time"

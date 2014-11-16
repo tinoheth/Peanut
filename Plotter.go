@@ -1,5 +1,5 @@
 // Plotter
-package Peanut
+package peanut
 
 import (
 	"code.google.com/p/plotinum/plot"
