@@ -2,7 +2,7 @@ package peanut
 
 import (
 	"bufio"
-	"fmt"
+	//"fmt"
 	"github.com/dustin/go-rs232"
 	"log"
 	"strconv"
