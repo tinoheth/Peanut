@@ -1,6 +1,7 @@
 package peanut
 
 import (
+	"fmt"
 	"image/png"
 	"log"
 	"net/http"
@@ -47,6 +48,7 @@ type PNGProvider struct {
 func (p *PNGProvider) handleRequest(w http.ResponseWriter, r *http.Request) {
 	impulses := p.DataProvider.ReadInCache(time.Now().AddDate(0, 0, -1), time.Hour*24)
 	values := Derive(impulses, p.ImpulseTranslationFactor)
+	fmt.Printf("Plotting %d values\n", len(values))
 	img := powerPlot(values)
 	png.Encode(w, img)
 }
