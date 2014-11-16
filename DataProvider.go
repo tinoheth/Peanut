@@ -144,7 +144,12 @@ func (self *DataProvider) listen() {
 		sample, working = <-self.input
 		self.pushSample(sample)
 		self.uncachedSamples++
-		go self.handleCache(defaultTimeFactor())
+		//		go self.handleCache(defaultTimeFactor())
+		// we are already in a separate thread - should be ok to block
+		if self.uncachedSamples >= DefaultImpulseCount {
+			self.writeOutCache(timeFactor)
+		}
+
 	}
 	println("Stop listenening")
 }

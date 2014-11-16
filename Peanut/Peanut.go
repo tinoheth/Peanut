@@ -41,7 +41,7 @@ func main() {
 	sms := NewSMSDatasource(tty, chan0, chan1)
 	sms.StartPolling()
 
-	solar := NewDataProvider("Solaranlage", basepath, chan0)
+	solar := NewDataProvider("Solar", basepath, chan0)
 	server.Providers["Solar"] = solar
 	consume := NewDataProvider("Verbrauch", basepath, chan1)
 	server.Providers["Verbrauch"] = consume
