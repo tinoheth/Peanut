@@ -96,7 +96,7 @@ func (d *SMSDatasource) loop() {
 				d.lastValue1 = v1
 			}
 		}
-		fmt.Printf("%v A = %v; B = %v\n", t, i0, i1)
-		time.Sleep(time.Millisecond * 10)
+		//fmt.Printf("%v A = %v; B = %v\n", t, i0, i1)
+		//time.Sleep(time.Millisecond * 10)
 	}
 }

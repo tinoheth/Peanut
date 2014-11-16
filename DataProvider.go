@@ -116,7 +116,7 @@ func (self *DataProvider) pushSample(sample ImpulseSample) {
 	if self.lastValue > sample.Impulses {
 		self.lastValue = sample.Impulses - 1 // should never happen in reality
 	}
-	log.Printf("Pushing Uncached: %d; lastWritten: %d; currentIndex: %d; sampleImpulses: %d; value: %d\n", self.uncachedSamples, self.lastWrittenIndex, self.currentIndex, sample.Impulses, self.lastValue)
+	//log.Printf("Pushing Uncached: %d; lastWritten: %d; currentIndex: %d; sampleImpulses: %d; value: %d\n", self.uncachedSamples, self.lastWrittenIndex, self.currentIndex, sample.Impulses, self.lastValue)
 	//log.Printf("Time: %v\n", sample.Time)
 	for self.lastValue < sample.Impulses {
 		self.ringbuffer[self.currentIndex] = sample.Time
