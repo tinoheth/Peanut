@@ -33,7 +33,12 @@ func main() {
 	chan0 := make(chan ImpulseSample, 2)
 	chan1 := make(chan ImpulseSample, 2)
 
-	sms := NewSMSDatasource("/dev/tty.usbserial-A702PEEC", chan0, chan1)
+	tty := "/dev/ttyUSB0"
+	if !FileExists(tty) {
+		// Maybe we are on a mac?
+		tty = "/dev/tty.usbserial-A702PEEC"
+	}
+	sms := NewSMSDatasource(tty, chan0, chan1)
 	sms.StartPolling()
 
 	solar := NewDataProvider("Solaranlage", basepath, chan0)

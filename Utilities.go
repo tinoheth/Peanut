@@ -1,6 +1,9 @@
 package peanut
 
-import "time"
+import (
+	"os"
+	"time"
+)
 
 type KWh float64
 
@@ -36,4 +39,13 @@ func DivideDuration(x time.Duration, y time.Duration) (result time.Duration) {
 		result++
 	}
 	return
+}
+
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	} else {
+		return false
+	}
 }
