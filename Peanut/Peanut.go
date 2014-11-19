@@ -35,7 +35,7 @@ func main() {
 
 	tty := "/dev/ttyUSB0"
 	if !FileExists(tty) {
-		// Maybe we are on a mac?
+		println("Couldn't open port. Maybe we are on a mac?")
 		tty = "/dev/tty.usbserial-A702PEEC"
 	}
 	sms := NewSMSDatasource(tty, chan0, chan1)
