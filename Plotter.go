@@ -10,9 +10,8 @@ import (
 	"image"
 	"image/color"
 	_ "image/png"
-	"math"
-	"math/rand"
-	"time"
+	//"math"
+	//"time"
 )
 
 func powerPlot(data []FloatSample) image.Image {
@@ -45,6 +44,5 @@ func (fp FloatSampleData) Len() int {
 
 func (fp FloatSampleData) XY(i int) (float64, float64) {
 	e := fp[i]
-	offset := time.Now()
-	return float64(e.Time.Sub(offset)), math.Remainder(rand.NormFloat64(), 3) + 3.0 // float64(e.Value)
+	return float64(e.Time.Unix()), float64(e.Value)
 }

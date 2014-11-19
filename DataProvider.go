@@ -3,16 +3,12 @@
 package peanut
 
 import (
-	"encoding/csv"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
-	"sync"
 	"time"
 )
 
@@ -29,19 +25,20 @@ type DataProvider struct {
 	ImpulseTranslationFactor Float
 	input                    <-chan ImpulseSample
 	providerPath             string
-	MaxSamples               uint
-	MinSamples               uint
-	ringbuffer               [BufferSize]time.Time
-	writeBuffer              [DefaultImpulseCount]uint16
-	currentIndex             uint
-	lastWrittenIndex         uint
-	lastValue                ImpulseCount
-	uncachedSamples          uint
-	writeMutex               sync.Mutex
+	timeFactor               time.Duration
+
+	impulseCount ImpulseCount
+
+	weekpath    string
+	checkpoint  time.Time // weekpath valid until that time
+	chanSize    ImpulseCount
+	catalogTime time.Time
+	disk        chan<- uint16
+	deltaSum    time.Duration
 }
 
 func (self *DataProvider) currentValue() Float {
-	return Float(self.lastValue) / self.ImpulseTranslationFactor
+	return Float(self.impulseCount) / self.ImpulseTranslationFactor
 }
 
 func NewDataProvider(name string, basepath string, input <-chan ImpulseSample) *DataProvider {
@@ -55,46 +52,9 @@ func NewDataProvider(name string, basepath string, input <-chan ImpulseSample) *
 		log.Fatal(error.Error())
 	}
 	result.ImpulseTranslationFactor = DefaultImpulseCount
-	result.MaxSamples = 10 //result.impulsesPerKWh * 20
-	result.MinSamples = 2  //result.MaxSamples / 2
+	result.timeFactor = defaultTimeFactor()
+	result.chanSize = math.MaxInt64 // force a new raw file
 	return result.InitFromDisk()
-}
-
-func (dp *DataProvider) InitFromDisk() *DataProvider {
-	dp.lastWrittenIndex = BufferSize - 1
-
-	defer dp.startListening()
-
-	l, err := filepath.Glob(filepath.Join(dp.providerPath, "*/*.csv"))
-	if err != nil {
-		log.Fatal(err.Error())
-	} else if len(l) == 0 {
-		return dp
-	}
-	cp := l[len(l)-1]
-	catalog, error := os.OpenFile(cp, os.O_RDONLY, os.FileMode(0755))
-	defer catalog.Close()
-	if error != nil {
-		println(error.Error())
-	} else {
-		reader := csv.NewReader(catalog)
-		lines, error := reader.ReadAll()
-		if error != nil {
-			println(error.Error())
-		} else {
-			ll := lines[len(lines)-1]
-			n, _ := strconv.Atoi(ll[1])
-			dp.lastValue = ImpulseCount(n)
-			rawpath := filepath.Join(strings.TrimRight(cp, ".csv"), ll[0])
-			stat, err := os.Stat(rawpath)
-			if err != nil {
-				dp.lastValue += ImpulseCount(stat.Size() / 2)
-			}
-		}
-	}
-	log.Printf("Init Uncached: %d; lastWritten: %d; currentIndex: %d; value: %d\n", dp.uncachedSamples, dp.lastWrittenIndex, dp.currentIndex, dp.lastValue)
-
-	return dp
 }
 
 func (self *DataProvider) currentTendency() (result float64) {
@@ -111,20 +71,6 @@ func (self *DataProvider) currentTendency() (result float64) {
 	return
 }
 
-func (self *DataProvider) pushSample(sample ImpulseSample) {
-	//self.samples.PushBack(sample)
-	if self.lastValue > sample.Impulses {
-		self.lastValue = sample.Impulses - 1 // should never happen in reality
-	}
-	//log.Printf("Pushing Uncached: %d; lastWritten: %d; currentIndex: %d; sampleImpulses: %d; value: %d\n", self.uncachedSamples, self.lastWrittenIndex, self.currentIndex, sample.Impulses, self.lastValue)
-	//log.Printf("Time: %v\n", sample.Time)
-	for self.lastValue < sample.Impulses {
-		self.ringbuffer[self.currentIndex] = sample.Time
-		self.currentIndex = (self.currentIndex + 1) % BufferSize
-		self.lastValue++
-	}
-}
-
 func (self *DataProvider) handlerKWh(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%f", self.currentValue())
 }
@@ -138,28 +84,31 @@ func (dp *DataProvider) startListening() {
 }
 
 func (self *DataProvider) listen() {
-	working := true
-	for working {
-		var sample ImpulseSample
-		sample, working = <-self.input
-		self.pushSample(sample)
-		self.uncachedSamples++
-		//		go self.handleCache(defaultTimeFactor())
-		// we are already in a separate thread - should be ok to block
-		if self.uncachedSamples >= DefaultImpulseCount {
-			self.writeOutCache(defaultTimeFactor())
+	for sample := range self.input {
+		var value uint16
+		println("listen")
+		if self.impulseCount > sample.Impulses {
+			self.impulseCount = sample.Impulses - 1 // should never happen in reality - exept on fresh systems
+		} else if self.impulseCount < sample.Impulses {
+			// Check if we need a new file because time difference is to big to hold
+			value = self.checkTime(sample.Time)
 		}
+		//log.Printf("Time: %v; chanSize: %v; impulseCount: %v; sampleI: %v\n", sample.Time, self.chanSize, self.impulseCount, sample.Impulses)
 
+		for self.impulseCount < sample.Impulses {
+			println("consumed impulse")
+			self.impulseCount++
+			// Decide if we need a new file because the current file is "full"
+			if self.chanSize < DefaultImpulseCount {
+				println("will push bytes")
+				self.disk <- value
+				println("did push bytes")
+				self.chanSize++
+			} else {
+				self.setupEndpoint(sample.Time, self.impulseCount)
+			}
+		}
+		println("listened")
 	}
 	println("Stop listenening")
-}
-
-func (self *DataProvider) handleCache(timeFactor time.Duration) {
-	/*
-		See if samples is to big - in this case, write the begin to disk and remove from memory
-	*/
-	//log.Printf("Uncached: %d; lastWritten: %d; currentIndex: %d\n", self.uncachedSamples, self.lastWrittenIndex, self.currentIndex)
-	if self.uncachedSamples >= DefaultImpulseCount {
-		self.writeOutCache(timeFactor)
-	}
 }

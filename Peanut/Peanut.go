@@ -30,8 +30,8 @@ func main() {
 	provider := NewDataProvider("Dummy", basepath, input)
 	server.Providers["Dummy"] = provider
 
-	chan0 := make(chan ImpulseSample, 2)
-	chan1 := make(chan ImpulseSample, 2)
+	chan0 := make(chan ImpulseSample)
+	chan1 := make(chan ImpulseSample)
 
 	tty := "/dev/ttyUSB0"
 	if !FileExists(tty) {
@@ -43,13 +43,13 @@ func main() {
 
 	solar := NewDataProvider("Solar", basepath, chan0)
 	server.Providers["Solar"] = solar
-	consume := NewDataProvider("Verbrauch", basepath, chan1)
-	server.Providers["Verbrauch"] = consume
+	//consume := NewDataProvider("Verbrauch", basepath, chan1)
+	//server.Providers["Verbrauch"] = consume
 
 	http.HandleFunc("/png", handlePNG)
 
 	//readTest(provider)
-	go Poll(sources)
+	//go Poll(sources)
 	server.Serve()
 }
 

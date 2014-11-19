@@ -41,6 +41,12 @@ func DivideDuration(x time.Duration, y time.Duration) (result time.Duration) {
 	return
 }
 
+func NextWeekBreak(t time.Time) time.Time {
+	y, m, d := t.Date()
+	d += 7 - int(t.Weekday())
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+}
+
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
