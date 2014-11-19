@@ -3,6 +3,7 @@ package peanut
 import (
 	"bufio"
 	"github.com/dustin/go-rs232"
+	"io"
 	"log"
 	"strconv"
 	"strings"
@@ -51,41 +52,37 @@ func (d *SMSDatasource) StartPolling() {
 	go d.loop()
 }
 
-func (d *SMSDatasource) readLoop(rw *bufio.ReadWriter, port *rs232.SerialPort) {
-	buf := make([]byte, 64)
-	for {
-		for {
-			//println("will write port")
-			n, err := port.Write([]byte("$?\n"))
-			//println("did write port")
-			rw.Flush()
-			if err != nil {
-				log.Printf("Error writing port: %s", err)
-				continue
-				//		} else {
-				//println(r.)
-			} else if n != 3 {
-				println(n)
-				log.Fatal(n)
-			}
-			time.Sleep(time.Millisecond * 500)
-			if rw.Available() > 0 {
-				break
-			}
+func poll(destSource <-chan io.Writer) {
+	p := <-destSource
+	for p != nil {
+		n, err := p.Write([]byte("$?\n"))
+		if err != nil {
+			println(err.Error())
+			time.Sleep(time.Second * 1)
+		} else {
+			log.Printf("Wrote %v", n)
+			time.Sleep(time.Millisecond * 50)
 		}
+	}
+	select {
+	case p = <-destSource:
+		println("New port for polling")
+	default:
+	}
+}
+
+func (d *SMSDatasource) readLoop(rw *bufio.Reader) {
+	for {
 		println("will read port")
-		//line, err := rw.ReadString('\n')
-		n, err := port.Read(buf)
+		line, err := rw.ReadString('\n')
 		println("did read port")
 		if err != nil {
 			log.Printf("Error reading:  %s", err)
 			continue
 		}
-		println(n)
-		line := string(buf)
 		parts := strings.Split(line, ";")
 		if len(parts) < 4 {
-			println("Error with serial communication. If this happens often, re-attach USB device " + line)
+			log.Printf("Error with serial communication. If this happens often, re-attach USB device (%s)", line)
 			continue
 		}
 		t := time.Now()
@@ -97,9 +94,11 @@ func (d *SMSDatasource) readLoop(rw *bufio.ReadWriter, port *rs232.SerialPort) {
 			if v0 != d.lastValue0 {
 				//println("will push sample 0")
 				select {
-				case d.output1 <- ImpulseSample{t, ImpulseCount(v0)}:
+				case d.output0 <- ImpulseSample{t, ImpulseCount(v0)}:
 					d.lastValue1 = v0
+					break
 				default:
+					println("Couldn't push for port 0")
 				}
 				//println("did push sample 0")
 				d.lastValue0 = v0
@@ -110,12 +109,13 @@ func (d *SMSDatasource) readLoop(rw *bufio.ReadWriter, port *rs232.SerialPort) {
 			v1 := ImpulseCount(i1)
 			if v1 != d.lastValue1 {
 				println("will push sample 0")
-
 				//go send(d.output1, ImpulseSample{t, ImpulseCount(v1)})
 				select {
 				case d.output1 <- ImpulseSample{t, ImpulseCount(v1)}:
 					d.lastValue1 = v1
+					break
 				default:
+					println("Couldn't push for port 1")
 				}
 				println("did push sample 0")
 			}
@@ -126,6 +126,8 @@ func (d *SMSDatasource) readLoop(rw *bufio.ReadWriter, port *rs232.SerialPort) {
 }
 
 func (d *SMSDatasource) loop() {
+	channel := make(chan io.Writer)
+	go poll(channel)
 	for {
 		log.Printf("Opening '%s'", d.portString)
 		port, err := rs232.OpenPort(d.portString, 115200, rs232.S_8N1)
@@ -133,18 +135,15 @@ func (d *SMSDatasource) loop() {
 			log.Printf("Error opening port: %s", err)
 		} else {
 			defer port.Close()
-
 			println("Serial port open")
-
-			r := bufio.NewReader(port)
-			w := bufio.NewWriter(port)
-			rw := bufio.NewReadWriter(r, w)
-			d.readLoop(rw, port)
+			channel <- port
+			d.readLoop(bufio.NewReader(port))
 		}
 		time.Sleep(time.Second * 5) // sleep - may be we reconnect adapter...
 	}
 }
 
+// obsolete - now...
 func send(c chan<- ImpulseSample, v ImpulseSample) {
 	c <- v
 }
