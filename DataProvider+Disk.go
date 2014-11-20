@@ -65,7 +65,7 @@ func (dp *DataProvider) checkTime(t time.Time) uint16 {
 		dp.checkpoint = NextWeekBreak(dp.catalogTime)
 		//dp.checkpoint = dp.checkpoint.AddDate(0, 0, 7)
 	} else {
-		println("Before check")
+		//println("Before check")
 		// check if delta t fits into int16
 		deltaT := t.Sub(dp.catalogTime) - dp.deltaSum*dp.timeFactor
 		delta := DivideDuration(deltaT, dp.timeFactor)
@@ -77,7 +77,7 @@ func (dp *DataProvider) checkTime(t time.Time) uint16 {
 			dp.deltaSum += delta
 		}
 	}
-	println("Did timecheck")
+	//println("Did timecheck")
 	return result
 }
 
@@ -89,7 +89,7 @@ func consume(diskCache <-chan uint16, path string) {
 	}
 	defer raw.Close()
 	for value := range diskCache {
-		println("Consumed bytes")
+		//println("Consumed bytes")
 		binary.Write(raw, binary.LittleEndian, value)
 	}
 }

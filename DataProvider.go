@@ -86,29 +86,31 @@ func (dp *DataProvider) startListening() {
 func (self *DataProvider) listen() {
 	for sample := range self.input {
 		var value uint16
-		println("listen")
+		//println("listen")
 		if self.impulseCount > sample.Impulses {
 			self.impulseCount = sample.Impulses - 1 // should never happen in reality - exept on fresh systems
 		} else if self.impulseCount < sample.Impulses {
 			// Check if we need a new file because time difference is to big to hold
+			// println("Sample has fresh impulses")
 			value = self.checkTime(sample.Time)
 		}
 		//log.Printf("Time: %v; chanSize: %v; impulseCount: %v; sampleI: %v\n", sample.Time, self.chanSize, self.impulseCount, sample.Impulses)
 
 		for self.impulseCount < sample.Impulses {
-			println("consumed impulse")
+			//println("consumed impulse")
 			self.impulseCount++
 			// Decide if we need a new file because the current file is "full"
 			if self.chanSize < DefaultImpulseCount {
-				println("will push bytes")
+				//println("will push bytes")
 				self.disk <- value
-				println("did push bytes")
+				//println("did push bytes")
 				self.chanSize++
 			} else {
+				println("File is full")
 				self.setupEndpoint(sample.Time, self.impulseCount)
 			}
 		}
-		println("listened")
+		//println("listened")
 	}
 	println("Stop listenening")
 }

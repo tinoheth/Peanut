@@ -29,8 +29,9 @@ type FloatSampleData []FloatSample
 
 func defaultTimeFactor() time.Duration {
 	// Use time.Duration to get rid of casting
-	return 10000000
-	// One second equals 100 time units, so we can measure nearly 11 minutes (6W)
+	//return 10000000 // If one second equals 100 time units,  we can measure nearly 11 minutes (6W) with uint16
+	return time.Millisecond * 100 // If one second equals 10 time units, so we can measure 4 minutes (15W) with uint8
+
 }
 
 func DivideDuration(x time.Duration, y time.Duration) (result time.Duration) {

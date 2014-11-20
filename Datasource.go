@@ -57,28 +57,30 @@ func poll(destSource <-chan io.Writer) {
 	for p != nil {
 		n, err := p.Write([]byte("$?\n"))
 		if err != nil {
+			log.Printf("Wrote %v\n", n)
 			println(err.Error())
 			time.Sleep(time.Second * 1)
 		} else {
-			log.Printf("Wrote %v", n)
+			//log.Printf("Wrote %v", n)
 			time.Sleep(time.Millisecond * 50)
 		}
-	}
-	select {
-	case p = <-destSource:
-		println("New port for polling")
-	default:
+		select {
+		case p = <-destSource:
+			println("New port for polling")
+		default:
+		}
 	}
 }
 
 func (d *SMSDatasource) readLoop(rw *bufio.Reader) {
 	for {
-		println("will read port")
+		//println("will read port")
+		//time.Sleep(time.Millisecond * 50)
 		line, err := rw.ReadString('\n')
-		println("did read port")
+		//println("did read port")
 		if err != nil {
 			log.Printf("Error reading:  %s", err)
-			continue
+			return
 		}
 		parts := strings.Split(line, ";")
 		if len(parts) < 4 {
@@ -108,7 +110,7 @@ func (d *SMSDatasource) readLoop(rw *bufio.Reader) {
 		if err == nil {
 			v1 := ImpulseCount(i1)
 			if v1 != d.lastValue1 {
-				println("will push sample 0")
+				//println("will push sample 0")
 				//go send(d.output1, ImpulseSample{t, ImpulseCount(v1)})
 				select {
 				case d.output1 <- ImpulseSample{t, ImpulseCount(v1)}:
@@ -117,7 +119,6 @@ func (d *SMSDatasource) readLoop(rw *bufio.Reader) {
 				default:
 					println("Couldn't push for port 1")
 				}
-				println("did push sample 0")
 			}
 		}
 		//fmt.Printf("%v A = %v; B = %v\n", t, i0, i1)
@@ -141,9 +142,4 @@ func (d *SMSDatasource) loop() {
 		}
 		time.Sleep(time.Second * 5) // sleep - may be we reconnect adapter...
 	}
-}
-
-// obsolete - now...
-func send(c chan<- ImpulseSample, v ImpulseSample) {
-	c <- v
 }
